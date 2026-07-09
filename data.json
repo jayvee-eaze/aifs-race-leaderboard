@@ -1,7 +1,7 @@
 {
   "asOf": "2026-07-09",
   "timezone": "America/Los_Angeles",
-  "generatedAtUtc": "2026-07-09T07:44:27+00:00",
+  "generatedAtUtc": "2026-07-09T21:58:59+00:00",
   "windows": {
     "day": {
       "start": "2026-07-09",
@@ -105,8 +105,8 @@
           "name": "Caleb Chase",
           "cashCents": 0,
           "dealsWon": 0,
-          "openDeals": 85,
-          "meetings": 0,
+          "openDeals": 89,
+          "meetings": 8,
           "closeRate": "0.0%",
           "rank": 1,
           "pctToGoalNum": 0.0,
@@ -126,8 +126,8 @@
           "name": "Dan Baldasso",
           "cashCents": 0,
           "dealsWon": 0,
-          "openDeals": 57,
-          "meetings": 0,
+          "openDeals": 59,
+          "meetings": 2,
           "closeRate": "0.0%",
           "rank": 2,
           "pctToGoalNum": 0.0,
@@ -151,8 +151,8 @@
           "name": "Caleb Chase",
           "cashCents": 0,
           "dealsWon": 0,
-          "openDeals": 85,
-          "meetings": 48,
+          "openDeals": 89,
+          "meetings": 52,
           "closeRate": "0.0%",
           "rank": 1,
           "pctToGoalNum": 0.0,
@@ -172,8 +172,8 @@
           "name": "Dan Baldasso",
           "cashCents": 0,
           "dealsWon": 0,
-          "openDeals": 57,
-          "meetings": 8,
+          "openDeals": 59,
+          "meetings": 10,
           "closeRate": "0.0%",
           "rank": 2,
           "pctToGoalNum": 0.0,
@@ -197,9 +197,9 @@
           "name": "Caleb Chase",
           "cashCents": 499700,
           "dealsWon": 1,
-          "openDeals": 85,
-          "meetings": 49,
-          "closeRate": "1.2%",
+          "openDeals": 89,
+          "meetings": 53,
+          "closeRate": "1.1%",
           "rank": 1,
           "pctToGoalNum": 3.0,
           "toGoCents": 14500300,
@@ -218,8 +218,8 @@
           "name": "Dan Baldasso",
           "cashCents": 0,
           "dealsWon": 0,
-          "openDeals": 57,
-          "meetings": 15,
+          "openDeals": 59,
+          "meetings": 17,
           "closeRate": "0.0%",
           "rank": 2,
           "pctToGoalNum": 0.0,
@@ -236,25 +236,25 @@
     "day": {
       "cashCents": 0,
       "dealsWon": 0,
-      "openDeals": 142,
-      "meetingsBooked": 0
+      "openDeals": 148,
+      "meetingsBooked": 10
     },
     "week": {
       "cashCents": 0,
       "dealsWon": 0,
-      "openDeals": 142,
-      "meetingsBooked": 56
+      "openDeals": 148,
+      "meetingsBooked": 62
     },
     "month": {
       "cashCents": 499700,
       "dealsWon": 1,
-      "openDeals": 142,
-      "meetingsBooked": 64
+      "openDeals": 148,
+      "meetingsBooked": 70
     }
   },
   "audit": {
     "excludedTestRecords": 8,
-    "totalOpportunitiesPulled": 199,
+    "totalOpportunitiesPulled": 208,
     "unattributedCashAllTime": "$0.00",
     "offboardedClosers": [
       "Matthew Burns"
