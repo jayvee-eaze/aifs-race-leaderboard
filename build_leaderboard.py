@@ -38,10 +38,9 @@ GHL_GROUP = os.environ.get("GHL_CALENDAR_GROUP_ID", "3ThPJMJXcptrv4goAE9Y")
 WINDOW_START = datetime.date.fromisoformat(os.environ.get("WINDOW_START", "2026-06-15"))
 
 # GHL user id -> rep name. The AIFS closing team.
-# James Wellington and Matthew Burns are intentionally excluded (no longer on the team).
+# James Wellington, Matthew Burns, and Dan Baldasso are intentionally excluded (no longer on the team).
 USER = {
     "KyR0lFZOC0l0GQHM6SLv": "Caleb Chase",
-    "Z3WFuyTIWmoZMmzNJrRl": "Dan Baldasso",
     "udlufVaizOrN5ZiOGhQL": "Carlos Fierro",
 }
 FIRST = {full: full.split()[0] for full in USER.values()}
