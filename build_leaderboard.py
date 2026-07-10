@@ -120,7 +120,7 @@ def pull_ghl_opportunities(token):
     url = "https://services.leadconnectorhq.com/opportunities/search"
     out, page = [], 1
     while True:
-        q = urllib.parse.urlencode({"locationId": GHL_LOC, "pipelineId": GHL_PIPE, "page": page, "limit": 100})
+        q = urllib.parse.urlencode({"location_id": GHL_LOC, "pipeline_id": GHL_PIPE, "page": page, "limit": 100})
         r = _req(url + "?" + q, H)
         opps = r.get("opportunities", []) or []
         out += opps
