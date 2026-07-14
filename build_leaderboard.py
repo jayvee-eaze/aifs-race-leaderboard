@@ -38,10 +38,13 @@ GHL_GROUP = os.environ.get("GHL_CALENDAR_GROUP_ID", "3ThPJMJXcptrv4goAE9Y")
 WINDOW_START = datetime.date.fromisoformat(os.environ.get("WINDOW_START", "2026-06-15"))
 
 # GHL user id -> rep name. The AIFS closing team.
-# James Wellington, Matthew Burns, and Dan Baldasso are intentionally excluded (no longer on the team).
+# Matthew Burns and Dan Baldasso are intentionally excluded (no longer on the team).
+# James Wellington was an agency-admin calendar flag, not a seated closer, until he
+# started taking real bookings 2026-07-13 - added back to the roster from that point.
 USER = {
     "KyR0lFZOC0l0GQHM6SLv": "Caleb Chase",
     "IF539f5WaTOw2WwPoo88": "Carlos Fierro",
+    "zqTQ1FHgPWvS6H4g7520": "James Wellington",
 }
 FIRST = {full: full.split()[0] for full in USER.values()}
 
