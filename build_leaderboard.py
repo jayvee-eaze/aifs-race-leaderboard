@@ -19,6 +19,13 @@
 #   weekly  = this calendar week, Monday to today
 #   monthly = this calendar month, the 1st to today (never earlier than WINDOW_START)
 #
+# Cash is ALWAYS the real Stripe charge amount, attributed to a rep via the charge's
+# metadata.contactId matched to the GHL opportunity that contact currently belongs to
+# (contact_owner_map/cash_between). It is deliberately NEVER GHL's own monetaryValue field -
+# a deal can be moved to Closed Won at its full contract value before the full amount is
+# actually collected (a deposit-based sale), which must never inflate a rep's cash figure.
+# dealsWon is still a GHL-side count (status/stage), a real signal, just not a dollar amount.
+#
 # Fail-safe: ANY pull error raises and exits non-zero BEFORE the file is touched, so a failed run
 # keeps the last good leaderboard.json. The write is atomic (tmp + os.replace).
 
@@ -166,10 +173,48 @@ def pull_stripe_charges(key):
     return out
 
 
-def build_period(pstart, pend, opps, owned, events, stripe_total, target, team_tiers):
-    """Assemble one period block. owned (pipeline) is a live snapshot, same across periods."""
+def contact_owner_map(opps):
+    """contactId -> rep uid, from opportunities currently owned by a roster rep. Used to
+    attribute real Stripe cash to a rep without trusting GHL's own monetaryValue field,
+    which can lag or overstate the deal's value relative to what has actually been
+    collected (e.g. a deposit-based deal stamped at full contract value)."""
+    m = {}
+    for o in opps:
+        uid = o.get("assignedTo") or o.get("assignedUserId")
+        if uid not in USER:
+            continue
+        cid = o.get("contactId") or ((o.get("contact") or {}).get("id"))
+        if cid:
+            m[cid] = uid
+    return m
+
+
+def cash_between(charges, owner_of, a, b):
+    """Real Stripe cash collected per rep in [a, b], plus any cash that could not be
+    attributed to a roster rep's contact (disclosed, never silently dropped)."""
+    lo = datetime.datetime.combine(a, datetime.time(0, 0), BNE).timestamp()
+    hi = datetime.datetime.combine(b + datetime.timedelta(days=1), datetime.time(0, 0), BNE).timestamp()
+    per_uid = defaultdict(float)
+    unattributed = 0.0
+    for c in charges:
+        t = c.get("created", 0)
+        if not (lo <= t < hi):
+            continue
+        cid = (c.get("metadata") or {}).get("contactId")
+        uid = owner_of.get(cid) if cid else None
+        if uid:
+            per_uid[uid] += c["amount"] / 100.0
+        else:
+            unattributed += c["amount"] / 100.0
+    return per_uid, unattributed
+
+
+def build_period(pstart, pend, opps, owned, events, cash_by_uid, unattributed_cash, target, team_tiers):
+    """Assemble one period block. owned (pipeline) is a live snapshot, same across periods.
+    cash_by_uid is real Stripe money, already windowed and attributed by cash_between() -
+    never GHL's own monetaryValue field. dealsWon is still a GHL-side count (status/stage),
+    a real signal in its own right, just not a dollar figure."""
     won = defaultdict(int)
-    cash = defaultdict(float)
     for o in opps:
         uid = o.get("assignedTo") or o.get("assignedUserId")
         if uid not in USER:
@@ -183,7 +228,6 @@ def build_period(pstart, pend, opps, owned, events, stripe_total, target, team_t
                     or o.get("updatedAt") or o.get("createdAt"))
         if d and pstart <= d <= pend:
             won[uid] += 1
-            cash[uid] += float(o.get("monetaryValue") or 0)
 
     booked = defaultdict(int)
     for e in events:
@@ -200,7 +244,7 @@ def build_period(pstart, pend, opps, owned, events, stripe_total, target, team_t
     reps = []
     for uid, full in USER.items():
         reps.append({"name": full, "first": FIRST[full], "ghlId": uid,
-                     "cash": int(round(cash[uid])), "dealsWon": won[uid],
+                     "cash": int(round(cash_by_uid.get(uid, 0))), "dealsWon": won[uid],
                      "pipelineOwned": owned[uid], "apptsBooked": booked[uid]})
     reps.sort(key=lambda r: (-r["cash"], -r["dealsWon"], -r["pipelineOwned"]))
     for i, r in enumerate(reps, 1):
@@ -219,7 +263,9 @@ def build_period(pstart, pend, opps, owned, events, stripe_total, target, team_t
         "cash": sum(r["cash"] for r in reps), "dealsWon": team_won,
         "pipelineOwned": team_owned, "apptsBooked": sum(r["apptsBooked"] for r in reps),
         "closeRate": f"{(team_won / team_owned * 100):.1f}%" if team_owned else "0%",
-        "unassignedPipeline": unassigned, "stripeCollected": int(round(stripe_total)),
+        "unassignedPipeline": unassigned,
+        "unattributedCash": int(round(unattributed_cash)),
+        "stripeCollected": int(round(sum(r["cash"] for r in reps) + unattributed_cash)),
         "tiers": [int(t) for t in team_tiers],
     }
     # target = PER-REP goal for this period; team_tiers = collective milestone ladder for this period
@@ -298,6 +344,12 @@ def build():
         if uid in USER:
             owned[uid] += 1
 
+    # Per-rep cash is real Stripe money (via metadata.contactId -> opportunity owner), not
+    # GHL's own monetaryValue field - a deal stamped "won" at its full contract value before
+    # the full amount is actually collected (a deposit-based sale, say) must never inflate a
+    # rep's cash figure. See contact_owner_map()/cash_between() docstrings.
+    owner_of = contact_owner_map(opps)
+
     def stripe_between(a, b):
         lo = datetime.datetime.combine(a, datetime.time(0, 0), BNE).timestamp()
         hi = datetime.datetime.combine(b + datetime.timedelta(days=1), datetime.time(0, 0), BNE).timestamp()
@@ -321,6 +373,10 @@ def build():
     week_tiers = [round(t * 7 / 30) for t in month_tiers]
     day_tiers = [round(t / 30) for t in month_tiers]
 
+    cash_d0, unattr_d0 = cash_between(charges, owner_of, d0, today)
+    cash_w0, unattr_w0 = cash_between(charges, owner_of, w0, today)
+    cash_m0, unattr_m0 = cash_between(charges, owner_of, m0, today)
+
     data = {
         "asOf": today.isoformat(),
         "source": "GoHighLevel opportunities + Stripe payments (live)",
@@ -329,15 +385,19 @@ def build():
         "teamTiers": month_tiers,
         "roster": list(USER.values()),
         "periods": {
-            "daily": {"label": "Today", **build_period(d0, today, opps, owned, events, stripe_between(d0, today), day_target, day_tiers)},
-            "weekly": {"label": "This Week", **build_period(w0, today, opps, owned, events, stripe_between(w0, today), week_target, week_tiers)},
-            "monthly": {"label": "This Month", **build_period(m0, today, opps, owned, events, stripe_between(m0, today), month_target, month_tiers)},
+            "daily": {"label": "Today", **build_period(d0, today, opps, owned, events, cash_d0, unattr_d0, day_target, day_tiers)},
+            "weekly": {"label": "This Week", **build_period(w0, today, opps, owned, events, cash_w0, unattr_w0, week_target, week_tiers)},
+            "monthly": {"label": "This Month", **build_period(m0, today, opps, owned, events, cash_m0, unattr_m0, month_target, month_tiers)},
         },
     }
 
-    # Reconcile GHL-attributed monthly cash against the true money source (Stripe), to the cent.
+    # Reconcile the money truth (Stripe) against itself: attributed rep cash + unattributed
+    # cash must equal the independent full-month Stripe pull, to the cent. Since rep cash IS
+    # real Stripe money now (not GHL's monetaryValue), a mismatch here means a real charge
+    # could not be matched to any roster rep's contact - worth a human's attention, but a
+    # different and rarer failure mode than "GHL says X, Stripe says Y."
     stripe_month = stripe_between(m0, today)
-    ghl_month_cash = data["periods"]["monthly"]["team"]["cash"]
+    ghl_month_cash = data["periods"]["monthly"]["team"]["cash"] + unattr_m0
     delta_c = cents(ghl_month_cash) - cents(stripe_month)
     data["reconciliation"] = {
         "ghlCash": int(round(ghl_month_cash)),
